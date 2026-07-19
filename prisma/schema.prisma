@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NivelUsuario {
+  ADMIN
+  GERENTE
+  VENDEDOR
+}
+
+enum StatusCliente {
+  LEAD
+  PROSPECT
+  CLIENTE
+  INATIVO
+}
+
+enum OrigemLead {
+  SITE
+  INSTAGRAM
+  FACEBOOK
+  WHATSAPP
+  INDICACAO
+  EVENTO
+  LIGACAO
+  OUTRO
+}
+
+enum StatusOportunidade {
+  NOVO_LEAD
+  PRIMEIRO_CONTATO
+  QUALIFICADO
+  PROPOSTA_ENVIADA
+  NEGOCIACAO
+  FECHADO
+  PERDIDO
+}
+
+enum PrioridadeTarefa {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum StatusTarefa {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+enum TipoInteracao {
+  LIGACAO
+  EMAIL
+  WHATSAPP
+  REUNIAO
+  VISITA
+  ANOTACAO
+}
+
+model Usuario {
+  id           String       @id @default(cuid())
+  nome         String
+  email        String       @unique
+  senha        String
+  nivel        NivelUsuario @default(VENDEDOR)
+  ativo        Boolean      @default(true)
+  criadoEm     DateTime     @default(now())
+  atualizadoEm DateTime     @updatedAt
+
+  clientes      Cliente[]
+  oportunidades Oportunidade[]
+  tarefas       Tarefa[]
+  interacoes    Interacao[]
+
+  @@map("usuarios")
+}
+
+model Cliente {
+  id           String        @id @default(cuid())
+  nome         String
+  email        String?
+  telefone     String?
+  empresa      String?
+  cargo        String?
+  documento    String?
+  status       StatusCliente @default(LEAD)
+  origem       OrigemLead    @default(OUTRO)
+  observacoes  String?
+  criadoEm     DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
+
+  responsavelId String?
+  responsavel   Usuario? @relation(fields: [responsavelId], references: [id], onDelete: SetNull)
+
+  oportunidades Oportunidade[]
+  tarefas       Tarefa[]
+  interacoes    Interacao[]
+
+  @@index([responsavelId])
+  @@index([status])
+  @@index([origem])
+  @@map("clientes")
+}
+
+model Oportunidade {
+  id                 String             @id @default(cuid())
+  titulo             String
+  descricao          String?
+  valor              Decimal            @default(0) @db.Decimal(12, 2)
+  status             StatusOportunidade @default(NOVO_LEAD)
+  probabilidade      Int                @default(0)
+  previsaoFechamento DateTime?
+  motivoPerda        String?
+  criadoEm           DateTime           @default(now())
+  atualizadoEm       DateTime           @updatedAt
+
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  responsavelId String?
+  responsavel   Usuario? @relation(fields: [responsavelId], references: [id], onDelete: SetNull)
+
+  tarefas    Tarefa[]
+  interacoes Interacao[]
+
+  @@index([clienteId])
+  @@index([responsavelId])
+  @@index([status])
+  @@map("oportunidades")
+}
+
+model Tarefa {
+  id           String           @id @default(cuid())
+  titulo       String
+  descricao    String?
+  prioridade   PrioridadeTarefa @default(MEDIA)
+  status       StatusTarefa     @default(PENDENTE)
+  dataLimite   DateTime?
+  concluidaEm  DateTime?
+  criadoEm     DateTime         @default(now())
+  atualizadoEm DateTime         @updatedAt
+
+  clienteId String?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  oportunidadeId String?
+  oportunidade   Oportunidade? @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+
+  responsavelId String?
+  responsavel   Usuario? @relation(fields: [responsavelId], references: [id], onDelete: SetNull)
+
+  @@index([clienteId])
+  @@index([oportunidadeId])
+  @@index([responsavelId])
+  @@index([status])
+  @@index([dataLimite])
+  @@map("tarefas")
+}
+
+model Interacao {
+  id        String        @id @default(cuid())
+  tipo      TipoInteracao
+  descricao String
+  data      DateTime      @default(now())
+  criadoEm  DateTime      @default(now())
+
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  oportunidadeId String?
+  oportunidade   Oportunidade? @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([clienteId])
+  @@index([oportunidadeId])
+  @@index([usuarioId])
+  @@index([data])
+  @@map("interacoes")
+}
