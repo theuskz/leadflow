@@ -1,22 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
-
 import "./globals.css";
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
-    subsets: ["latin"],
-});
+import { QueryProvider } from "@/components/providers/query-provider";
 
 export const metadata: Metadata = {
     title: "LeadFlow CRM",
-    description: "Sistema moderno de gestão comercial.",
+    description: "CRM para gestão de clientes e oportunidades",
 };
 
 export default function RootLayout({
@@ -25,16 +14,11 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="pt-BR">
-            <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-            >
-                {children}
-
-                <Toaster
-                    richColors
-                    position="top-right"
-                />
+        <html lang="pt-BR" className="dark">
+            <body>
+                <QueryProvider>
+                    {children}
+                </QueryProvider>
             </body>
         </html>
     );
