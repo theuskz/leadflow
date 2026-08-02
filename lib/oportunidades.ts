@@ -1,9 +1,9 @@
-import {
+import type {
     OportunidadesResponse,
     StatusOportunidade,
 } from "@/types/oportunidade";
 
-export type ClienteOpcao = {
+export type ClienteParaOportunidade = {
     id: string;
     nome: string;
     empresa: string | null;
@@ -11,70 +11,111 @@ export type ClienteOpcao = {
 
 export type NovaOportunidadePayload = {
     titulo: string;
-    clienteId: string;
     descricao?: string;
     valor: number;
     status: StatusOportunidade;
     probabilidade: number;
     previsaoFechamento?: string | null;
+    clienteId: string;
+    responsavelId?: string;
 };
 
-type ClientesResponse = {
-    clientes: ClienteOpcao[];
-};
+async function obterMensagemErro(
+    resposta: Response,
+): Promise<string> {
+    const dados = await resposta
+        .json()
+        .catch(() => null);
 
-async function obterErro(resposta: Response) {
-    const dados = await resposta.json().catch(() => null);
-
-    return dados?.erro ?? "Ocorreu um erro inesperado.";
+    return (
+        dados?.erro ??
+        "Não foi possível concluir a operação."
+    );
 }
 
-export async function buscarOportunidades(busca = "") {
+export async function buscarOportunidades(
+    busca = "",
+): Promise<OportunidadesResponse> {
+    const parametros = new URLSearchParams();
+
+    if (busca.trim()) {
+        parametros.set("busca", busca.trim());
+    }
+
+    const query = parametros.toString();
+
     const resposta = await fetch(
-        `/api/oportunidades?busca=${encodeURIComponent(busca)}`,
+        `/api/oportunidades${query ? `?${query}` : ""}`,
         {
             credentials: "include",
+            cache: "no-store",
         },
     );
 
     if (!resposta.ok) {
-        throw new Error(await obterErro(resposta));
+        throw new Error(
+            await obterMensagemErro(resposta),
+        );
     }
 
-    return resposta.json() as Promise<OportunidadesResponse>;
+    return resposta.json();
 }
 
-export async function buscarClientesParaOportunidade() {
+export async function buscarClientesParaOportunidade(): Promise<
+    ClienteParaOportunidade[]
+> {
     const resposta = await fetch(
-        "/api/clientes?pagina=1&limite=100",
+        "/api/clientes?limite=100",
         {
             credentials: "include",
+            cache: "no-store",
         },
     );
 
     if (!resposta.ok) {
-        throw new Error(await obterErro(resposta));
+        throw new Error(
+            await obterMensagemErro(resposta),
+        );
     }
 
-    const dados = (await resposta.json()) as ClientesResponse;
+    const dados = await resposta.json();
 
-    return dados.clientes;
+    if (Array.isArray(dados)) {
+        return dados;
+    }
+
+    if (Array.isArray(dados.clientes)) {
+        return dados.clientes;
+    }
+
+    if (Array.isArray(dados.dados)) {
+        return dados.dados;
+    }
+
+    return [];
 }
 
 export async function criarOportunidade(
     payload: NovaOportunidadePayload,
 ) {
-    const resposta = await fetch("/api/oportunidades", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
+    const resposta = await fetch(
+        "/api/oportunidades",
+        {
+            method: "POST",
+            credentials: "include",
+
+            headers: {
+                "Content-Type": "application/json",
+            },
+
+            body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-    });
+    );
 
     if (!resposta.ok) {
-        throw new Error(await obterErro(resposta));
+        throw new Error(
+            await obterMensagemErro(resposta),
+        );
     }
 
     return resposta.json();

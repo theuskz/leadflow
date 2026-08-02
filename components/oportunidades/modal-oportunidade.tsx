@@ -1,8 +1,21 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Loader2, X } from "lucide-react";
+import {
+    FormEvent,
+    useEffect,
+    useState,
+} from "react";
+
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+} from "@tanstack/react-query";
+
+import {
+    Loader2,
+    X,
+} from "lucide-react";
 
 import {
     buscarClientesParaOportunidade,
@@ -10,47 +23,79 @@ import {
     NovaOportunidadePayload,
 } from "@/lib/oportunidades";
 
+import {
+    atualizarOportunidade,
+    AtualizarOportunidadePayload,
+} from "@/lib/oportunidade";
+
 import { StatusOportunidade } from "@/types/oportunidade";
+
+type OportunidadeParaEdicao = {
+    id: string;
+    titulo: string;
+    descricao?: string | null;
+    valor: number;
+    status: StatusOportunidade;
+    probabilidade: number;
+    previsaoFechamento?: string | null;
+    motivoPerda?: string | null;
+
+    cliente: {
+        id: string;
+        nome?: string;
+    };
+};
 
 type ModalOportunidadeProps = {
     aberto: boolean;
     fechar: () => void;
-    aoCriar: () => void;
+
+    modo?: "criar" | "editar";
+
+    oportunidade?: OportunidadeParaEdicao | null;
+
+    aoSalvar?: () => void;
+
+    /*
+     * Mantido para não quebrar a tela de listagem
+     * que já usa a propriedade aoCriar.
+     */
+    aoCriar?: () => void;
 };
 
 const statusDisponiveis: {
     valor: StatusOportunidade;
     rotulo: string;
 }[] = [
-    {
-        valor: "NOVO_LEAD",
-        rotulo: "Novo lead",
-    },
-    {
-        valor: "PRIMEIRO_CONTATO",
-        rotulo: "Primeiro contato",
-    },
-    {
-        valor: "QUALIFICADO",
-        rotulo: "Qualificado",
-    },
-    {
-        valor: "PROPOSTA_ENVIADA",
-        rotulo: "Proposta enviada",
-    },
-    {
-        valor: "NEGOCIACAO",
-        rotulo: "Negociação",
-    },
-    {
-        valor: "FECHADO",
-        rotulo: "Fechado",
-    },
-    {
-        valor: "PERDIDO",
-        rotulo: "Perdido",
-    },
-];
+        {
+            valor: "NOVO_LEAD",
+            rotulo: "Novo lead",
+        },
+        {
+            valor: "PRIMEIRO_CONTATO",
+            rotulo: "Primeiro contato",
+        },
+        {
+            valor: "QUALIFICADO",
+            rotulo: "Qualificado",
+        },
+        {
+            valor: "PROPOSTA_ENVIADA",
+            rotulo: "Proposta enviada",
+        },
+        {
+            valor: "NEGOCIACAO",
+            rotulo: "Negociação",
+        },
+        {
+            valor: "FECHADO",
+            rotulo: "Fechado",
+        },
+        {
+            valor: "PERDIDO",
+            rotulo: "Perdido",
+        },
+    ];
 
 const probabilidadesPorStatus: Record<
     StatusOportunidade,
@@ -65,7 +110,7 @@ const probabilidadesPorStatus: Record<
     PERDIDO: 0,
 };
 
-const estadoInicial: NovaOportunidadePayload = {
+const estadoInicial: AtualizarOportunidadePayload = {
     titulo: "",
     clienteId: "",
     descricao: "",
@@ -73,34 +118,153 @@ const estadoInicial: NovaOportunidadePayload = {
     status: "NOVO_LEAD",
     probabilidade: 10,
     previsaoFechamento: null,
+    motivoPerda: null,
 };
+
+function formatarDataParaInput(
+    data?: string | null,
+) {
+    if (!data) {
+        return null;
+    }
+
+    const dataConvertida = new Date(data);
+
+    if (Number.isNaN(dataConvertida.getTime())) {
+        return null;
+    }
+
+    return dataConvertida
+        .toISOString()
+        .split("T")[0];
+}
 
 export function ModalOportunidade({
     aberto,
     fechar,
+    modo = "criar",
+    oportunidade,
+    aoSalvar,
     aoCriar,
 }: ModalOportunidadeProps) {
-    const [formulario, setFormulario] =
-        useState<NovaOportunidadePayload>(estadoInicial);
+    const queryClient = useQueryClient();
 
-    const [erroFormulario, setErroFormulario] = useState("");
+    const editando =
+        modo === "editar" &&
+        Boolean(oportunidade);
+
+    const [formulario, setFormulario] =
+        useState<AtualizarOportunidadePayload>(
+            estadoInicial,
+        );
+
+    const [
+        erroFormulario,
+        setErroFormulario,
+    ] = useState("");
 
     const {
         data: clientes = [],
         isPending: carregandoClientes,
     } = useQuery({
-        queryKey: ["clientes", "selecao-oportunidade"],
-        queryFn: buscarClientesParaOportunidade,
+        queryKey: [
+            "clientes",
+            "selecao-oportunidade",
+        ],
+
+        queryFn:
+            buscarClientesParaOportunidade,
+
         enabled: aberto,
     });
 
-    const mutation = useMutation({
-        mutationFn: criarOportunidade,
+    useEffect(() => {
+        if (!aberto) {
+            return;
+        }
 
-        onSuccess: () => {
-            setFormulario(estadoInicial);
+        if (editando && oportunidade) {
+            setFormulario({
+                titulo: oportunidade.titulo,
+
+                clienteId:
+                    oportunidade.cliente.id,
+
+                descricao:
+                    oportunidade.descricao ?? "",
+
+                valor:
+                    Number(
+                        oportunidade.valor,
+                    ) || 0,
+
+                status:
+                    oportunidade.status,
+
+                probabilidade:
+                    oportunidade.probabilidade,
+
+                previsaoFechamento:
+                    formatarDataParaInput(
+                        oportunidade.previsaoFechamento,
+                    ),
+
+                motivoPerda:
+                    oportunidade.motivoPerda ??
+                    null,
+            });
+
+            return;
+        }
+
+        setFormulario(estadoInicial);
+    }, [
+        aberto,
+        editando,
+        oportunidade,
+    ]);
+
+    const mutation = useMutation({
+        mutationFn: async (
+            dados: AtualizarOportunidadePayload,
+        ) => {
+            if (
+                editando &&
+                oportunidade
+            ) {
+                return atualizarOportunidade({
+                    id: oportunidade.id,
+                    dados,
+                });
+            }
+
+            return criarOportunidade(
+                dados as NovaOportunidadePayload,
+            );
+        },
+
+        onSuccess: async () => {
             setErroFormulario("");
-            aoCriar();
+
+            await queryClient.invalidateQueries({
+                queryKey: ["oportunidades"],
+            });
+
+            if (oportunidade?.id) {
+                await queryClient.invalidateQueries({
+                    queryKey: [
+                        "oportunidade",
+                        oportunidade.id,
+                    ],
+                });
+            }
+
+            aoSalvar?.();
+
+            if (!editando) {
+                aoCriar?.();
+            }
+
             fechar();
         },
 
@@ -108,7 +272,9 @@ export function ModalOportunidade({
             setErroFormulario(
                 erro instanceof Error
                     ? erro.message
-                    : "Não foi possível criar a oportunidade.",
+                    : editando
+                        ? "Não foi possível atualizar a oportunidade."
+                        : "Não foi possível criar a oportunidade.",
             );
         },
     });
@@ -120,8 +286,13 @@ export function ModalOportunidade({
     }, [aberto]);
 
     useEffect(() => {
-        function fecharComEscape(evento: KeyboardEvent) {
-            if (evento.key === "Escape") {
+        function fecharComEscape(
+            evento: KeyboardEvent,
+        ) {
+            if (
+                evento.key === "Escape" &&
+                !mutation.isPending
+            ) {
                 fechar();
             }
         }
@@ -132,7 +303,8 @@ export function ModalOportunidade({
                 fecharComEscape,
             );
 
-            document.body.style.overflow = "hidden";
+            document.body.style.overflow =
+                "hidden";
         }
 
         return () => {
@@ -141,15 +313,20 @@ export function ModalOportunidade({
                 fecharComEscape,
             );
 
-            document.body.style.overflow = "";
+            document.body.style.overflow =
+                "";
         };
-    }, [aberto, fechar]);
+    }, [
+        aberto,
+        fechar,
+        mutation.isPending,
+    ]);
 
     function alterarCampo<
-        Campo extends keyof NovaOportunidadePayload,
+        Campo extends keyof AtualizarOportunidadePayload,
     >(
         campo: Campo,
-        valor: NovaOportunidadePayload[Campo],
+        valor: AtualizarOportunidadePayload[Campo],
     ) {
         setFormulario((estadoAtual) => ({
             ...estadoAtual,
@@ -157,46 +334,117 @@ export function ModalOportunidade({
         }));
     }
 
-    function alterarStatus(status: StatusOportunidade) {
+    function alterarStatus(
+        status: StatusOportunidade,
+    ) {
         setFormulario((estadoAtual) => ({
             ...estadoAtual,
             status,
-            probabilidade: probabilidadesPorStatus[status],
+
+            probabilidade:
+                probabilidadesPorStatus[
+                status
+                ],
+
+            motivoPerda:
+                status === "PERDIDO"
+                    ? estadoAtual.motivoPerda
+                    : null,
         }));
     }
 
-    function enviarFormulario(evento: FormEvent) {
+    function enviarFormulario(
+        evento: FormEvent,
+    ) {
         evento.preventDefault();
+
         setErroFormulario("");
 
-        if (formulario.titulo.trim().length < 2) {
+        if (
+            formulario.titulo
+                .trim()
+                .length < 2
+        ) {
             setErroFormulario(
                 "Informe um título com pelo menos 2 caracteres.",
             );
+
             return;
         }
 
         if (!formulario.clienteId) {
-            setErroFormulario("Selecione um cliente.");
+            setErroFormulario(
+                "Selecione um cliente.",
+            );
+
             return;
         }
 
         if (
             formulario.valor < 0 ||
-            !Number.isFinite(formulario.valor)
+            !Number.isFinite(
+                formulario.valor,
+            )
         ) {
-            setErroFormulario("Informe um valor válido.");
+            setErroFormulario(
+                "Informe um valor válido.",
+            );
+
+            return;
+        }
+
+        if (
+            formulario.probabilidade < 0 ||
+            formulario.probabilidade > 100
+        ) {
+            setErroFormulario(
+                "A probabilidade deve estar entre 0 e 100.",
+            );
+
+            return;
+        }
+
+        if (
+            formulario.status ===
+            "PERDIDO" &&
+            !formulario.motivoPerda?.trim()
+        ) {
+            setErroFormulario(
+                "Informe o motivo da perda da oportunidade.",
+            );
+
             return;
         }
 
         mutation.mutate({
             ...formulario,
-            titulo: formulario.titulo.trim(),
+
+            titulo:
+                formulario.titulo.trim(),
+
             descricao:
-                formulario.descricao?.trim() || undefined,
+                formulario.descricao?.trim() ||
+                undefined,
+
             previsaoFechamento:
-                formulario.previsaoFechamento || null,
+                formulario.previsaoFechamento ||
+                null,
+
+            motivoPerda:
+                formulario.status ===
+                    "PERDIDO"
+                    ? formulario.motivoPerda?.trim() ||
+                    null
+                    : null,
         });
+    }
+
+    function fecharModal() {
+        if (mutation.isPending) {
+            return;
+        }
+
+        fechar();
     }
 
     if (!aberto) {
@@ -213,8 +461,11 @@ export function ModalOportunidade({
                 backdrop-blur-sm
             "
             onMouseDown={(evento) => {
-                if (evento.target === evento.currentTarget) {
-                    fechar();
+                if (
+                    evento.target ===
+                    evento.currentTarget
+                ) {
+                    fecharModal();
                 }
             }}
         >
@@ -240,23 +491,32 @@ export function ModalOportunidade({
                 >
                     <div>
                         <h2 className="text-xl font-bold text-white">
-                            Nova oportunidade
+                            {editando
+                                ? "Editar oportunidade"
+                                : "Nova oportunidade"}
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-400">
-                            Adicione uma nova negociação ao pipeline.
+                            {editando
+                                ? "Atualize as informações desta negociação."
+                                : "Adicione uma nova negociação ao pipeline."}
                         </p>
                     </div>
 
                     <button
                         type="button"
-                        onClick={fechar}
+                        onClick={fecharModal}
+                        disabled={
+                            mutation.isPending
+                        }
                         className="
                             rounded-lg p-2
                             text-slate-400
                             transition
                             hover:bg-slate-800
                             hover:text-white
+                            disabled:cursor-not-allowed
+                            disabled:opacity-60
                         "
                         aria-label="Fechar modal"
                     >
@@ -265,25 +525,33 @@ export function ModalOportunidade({
                 </div>
 
                 <form
-                    onSubmit={enviarFormulario}
+                    onSubmit={
+                        enviarFormulario
+                    }
                     className="space-y-5 p-6"
                 >
                     <div className="grid gap-5 md:grid-cols-2">
                         <div className="md:col-span-2">
                             <label
-                                htmlFor="titulo"
+                                htmlFor="titulo-oportunidade"
                                 className="mb-2 block text-sm font-medium text-slate-300"
                             >
                                 Título
                             </label>
 
                             <input
-                                id="titulo"
-                                value={formulario.titulo}
-                                onChange={(evento) =>
+                                id="titulo-oportunidade"
+                                value={
+                                    formulario.titulo
+                                }
+                                onChange={(
+                                    evento,
+                                ) =>
                                     alterarCampo(
                                         "titulo",
-                                        evento.target.value,
+                                        evento
+                                            .target
+                                            .value,
                                     )
                                 }
                                 placeholder="Ex.: Venda de plano empresarial"
@@ -303,22 +571,30 @@ export function ModalOportunidade({
 
                         <div className="md:col-span-2">
                             <label
-                                htmlFor="cliente"
+                                htmlFor="cliente-oportunidade"
                                 className="mb-2 block text-sm font-medium text-slate-300"
                             >
                                 Cliente
                             </label>
 
                             <select
-                                id="cliente"
-                                value={formulario.clienteId}
-                                onChange={(evento) =>
+                                id="cliente-oportunidade"
+                                value={
+                                    formulario.clienteId
+                                }
+                                onChange={(
+                                    evento,
+                                ) =>
                                     alterarCampo(
                                         "clienteId",
-                                        evento.target.value,
+                                        evento
+                                            .target
+                                            .value,
                                     )
                                 }
-                                disabled={carregandoClientes}
+                                disabled={
+                                    carregandoClientes
+                                }
                                 className="
                                     w-full rounded-xl
                                     border border-slate-700
@@ -337,43 +613,58 @@ export function ModalOportunidade({
                                         : "Selecione um cliente"}
                                 </option>
 
-                                {clientes.map((cliente) => (
-                                    <option
-                                        key={cliente.id}
-                                        value={cliente.id}
-                                    >
-                                        {cliente.nome}
-                                        {cliente.empresa
-                                            ? ` — ${cliente.empresa}`
-                                            : ""}
-                                    </option>
-                                ))}
+                                {clientes.map(
+                                    (cliente) => (
+                                        <option
+                                            key={
+                                                cliente.id
+                                            }
+                                            value={
+                                                cliente.id
+                                            }
+                                        >
+                                            {
+                                                cliente.nome
+                                            }
+
+                                            {cliente.empresa
+                                                ? ` — ${cliente.empresa}`
+                                                : ""}
+                                        </option>
+                                    ),
+                                )}
                             </select>
                         </div>
 
                         <div>
                             <label
-                                htmlFor="valor"
+                                htmlFor="valor-oportunidade"
                                 className="mb-2 block text-sm font-medium text-slate-300"
                             >
                                 Valor
                             </label>
 
                             <input
-                                id="valor"
+                                id="valor-oportunidade"
                                 type="number"
                                 min="0"
                                 step="0.01"
                                 value={
-                                    formulario.valor === 0
+                                    formulario.valor ===
+                                        0
                                         ? ""
                                         : formulario.valor
                                 }
-                                onChange={(evento) =>
+                                onChange={(
+                                    evento,
+                                ) =>
                                     alterarCampo(
                                         "valor",
                                         Number(
-                                            evento.target.value || 0,
+                                            evento
+                                                .target
+                                                .value ||
+                                            0,
                                         ),
                                     )
                                 }
@@ -394,22 +685,28 @@ export function ModalOportunidade({
 
                         <div>
                             <label
-                                htmlFor="previsaoFechamento"
+                                htmlFor="previsao-oportunidade"
                                 className="mb-2 block text-sm font-medium text-slate-300"
                             >
                                 Previsão de fechamento
                             </label>
 
                             <input
-                                id="previsaoFechamento"
+                                id="previsao-oportunidade"
                                 type="date"
                                 value={
-                                    formulario.previsaoFechamento ?? ""
+                                    formulario.previsaoFechamento ??
+                                    ""
                                 }
-                                onChange={(evento) =>
+                                onChange={(
+                                    evento,
+                                ) =>
                                     alterarCampo(
                                         "previsaoFechamento",
-                                        evento.target.value || null,
+                                        evento
+                                            .target
+                                            .value ||
+                                        null,
                                     )
                                 }
                                 className="
@@ -427,18 +724,23 @@ export function ModalOportunidade({
 
                         <div>
                             <label
-                                htmlFor="status"
+                                htmlFor="status-oportunidade"
                                 className="mb-2 block text-sm font-medium text-slate-300"
                             >
                                 Etapa
                             </label>
 
                             <select
-                                id="status"
-                                value={formulario.status}
-                                onChange={(evento) =>
+                                id="status-oportunidade"
+                                value={
+                                    formulario.status
+                                }
+                                onChange={(
+                                    evento,
+                                ) =>
                                     alterarStatus(
-                                        evento.target
+                                        evento
+                                            .target
                                             .value as StatusOportunidade,
                                     )
                                 }
@@ -453,64 +755,144 @@ export function ModalOportunidade({
                                     focus:border-cyan-500
                                 "
                             >
-                                {statusDisponiveis.map((status) => (
-                                    <option
-                                        key={status.valor}
-                                        value={status.valor}
-                                    >
-                                        {status.rotulo}
-                                    </option>
-                                ))}
+                                {statusDisponiveis.map(
+                                    (status) => (
+                                        <option
+                                            key={
+                                                status.valor
+                                            }
+                                            value={
+                                                status.valor
+                                            }
+                                        >
+                                            {
+                                                status.rotulo
+                                            }
+                                        </option>
+                                    ),
+                                )}
                             </select>
                         </div>
 
                         <div>
                             <div className="mb-2 flex items-center justify-between">
                                 <label
-                                    htmlFor="probabilidade"
+                                    htmlFor="probabilidade-oportunidade"
                                     className="text-sm font-medium text-slate-300"
                                 >
                                     Probabilidade
                                 </label>
 
                                 <span className="text-sm font-semibold text-cyan-400">
-                                    {formulario.probabilidade}%
+                                    {
+                                        formulario.probabilidade
+                                    }
+                                    %
                                 </span>
                             </div>
 
                             <input
-                                id="probabilidade"
+                                id="probabilidade-oportunidade"
                                 type="range"
                                 min="0"
                                 max="100"
                                 step="5"
-                                value={formulario.probabilidade}
-                                onChange={(evento) =>
+                                value={
+                                    formulario.probabilidade
+                                }
+                                disabled={
+                                    formulario.status ===
+                                    "FECHADO" ||
+                                    formulario.status ===
+                                    "PERDIDO"
+                                }
+                                onChange={(
+                                    evento,
+                                ) =>
                                     alterarCampo(
                                         "probabilidade",
-                                        Number(evento.target.value),
+                                        Number(
+                                            evento
+                                                .target
+                                                .value,
+                                        ),
                                     )
                                 }
-                                className="h-11 w-full accent-cyan-500"
+                                className="
+                                    h-11 w-full
+                                    accent-cyan-500
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-60
+                                "
                             />
                         </div>
 
+                        {formulario.status ===
+                            "PERDIDO" && (
+                                <div className="md:col-span-2">
+                                    <label
+                                        htmlFor="motivo-perda"
+                                        className="mb-2 block text-sm font-medium text-slate-300"
+                                    >
+                                        Motivo da perda
+                                    </label>
+
+                                    <textarea
+                                        id="motivo-perda"
+                                        rows={3}
+                                        value={
+                                            formulario.motivoPerda ??
+                                            ""
+                                        }
+                                        onChange={(
+                                            evento,
+                                        ) =>
+                                            alterarCampo(
+                                                "motivoPerda",
+                                                evento
+                                                    .target
+                                                    .value,
+                                            )
+                                        }
+                                        placeholder="Informe por que esta oportunidade foi perdida..."
+                                        className="
+                                        w-full resize-none rounded-xl
+                                        border border-red-500/40
+                                        bg-slate-950
+                                        px-4 py-3
+                                        text-white
+                                        outline-none
+                                        transition
+                                        placeholder:text-slate-600
+                                        focus:border-red-400
+                                    "
+                                    />
+                                </div>
+                            )}
+
                         <div className="md:col-span-2">
                             <label
-                                htmlFor="descricao"
+                                htmlFor="descricao-oportunidade"
                                 className="mb-2 block text-sm font-medium text-slate-300"
                             >
                                 Descrição
                             </label>
 
                             <textarea
-                                id="descricao"
+                                id="descricao-oportunidade"
                                 rows={4}
-                                value={formulario.descricao ?? ""}
-                                onChange={(evento) =>
+                                value={
+                                    formulario.descricao ??
+                                    ""
+                                }
+                                onChange={(
+                                    evento,
+                                ) =>
                                     alterarCampo(
                                         "descricao",
-                                        evento.target.value,
+                                        evento
+                                            .target
+                                            .value,
                                     )
                                 }
                                 placeholder="Informações relevantes sobre esta oportunidade..."
@@ -553,8 +935,12 @@ export function ModalOportunidade({
                     >
                         <button
                             type="button"
-                            onClick={fechar}
-                            disabled={mutation.isPending}
+                            onClick={
+                                fecharModal
+                            }
+                            disabled={
+                                mutation.isPending
+                            }
                             className="
                                 rounded-xl
                                 border border-slate-700
@@ -572,7 +958,9 @@ export function ModalOportunidade({
 
                         <button
                             type="submit"
-                            disabled={mutation.isPending}
+                            disabled={
+                                mutation.isPending
+                            }
                             className="
                                 flex items-center justify-center gap-2
                                 rounded-xl
@@ -594,7 +982,9 @@ export function ModalOportunidade({
 
                             {mutation.isPending
                                 ? "Salvando..."
-                                : "Criar oportunidade"}
+                                : editando
+                                    ? "Salvar alterações"
+                                    : "Criar oportunidade"}
                         </button>
                     </div>
                 </form>

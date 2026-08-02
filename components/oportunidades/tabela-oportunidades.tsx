@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { Oportunidade } from "@/types/oportunidade";
 
 type Props = {
@@ -14,11 +16,13 @@ const cores = {
     NEGOCIACAO: "bg-orange-600",
     FECHADO: "bg-green-600",
     PERDIDO: "bg-red-600",
-};
+} as const;
 
 export function TabelaOportunidades({
     oportunidades,
 }: Props) {
+    const router = useRouter();
+
     return (
         <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
             <table className="w-full">
@@ -37,7 +41,16 @@ export function TabelaOportunidades({
                     {oportunidades.map((o) => (
                         <tr
                             key={o.id}
-                            className="border-t border-slate-800 hover:bg-slate-800/40"
+                            onClick={() =>
+                                router.push(`/oportunidades/${o.id}`)
+                            }
+                            className="
+                                cursor-pointer
+                                border-t
+                                border-slate-800
+                                hover:bg-slate-800/40
+                                transition-colors
+                            "
                         >
                             <td className="p-4">
                                 <div className="font-medium text-white">
@@ -68,7 +81,7 @@ export function TabelaOportunidades({
                                 </span>
                             </td>
 
-                            <td className="text-cyan-400 font-semibold">
+                            <td className="font-semibold text-cyan-400">
                                 {o.probabilidade}%
                             </td>
 
