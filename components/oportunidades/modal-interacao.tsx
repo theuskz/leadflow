@@ -23,7 +23,9 @@ import {
 } from "lucide-react";
 
 import {
+    atualizarInteracao,
     criarInteracao,
+    type AtualizarInteracaoPayload,
     type NovaInteracaoPayload,
 } from "@/lib/interacoes";
 
@@ -31,10 +33,20 @@ import type {
     TipoInteracao,
 } from "@/types/oportunidade";
 
+import type {
+    InteracaoOportunidade,
+} from "@/types/oportunidade";
+
 type Props = {
     oportunidadeId: string;
+
     aberto: boolean;
+
     aoFechar: () => void;
+
+    modo?: "criar" | "editar";
+
+    interacao?: InteracaoOportunidade | null;
 };
 
 type OpcaoTipo = {
@@ -93,6 +105,8 @@ export function ModalInteracao({
     oportunidadeId,
     aberto,
     aoFechar,
+    modo = "criar",
+    interacao,
 }: Props) {
     const queryClient = useQueryClient();
 
@@ -107,15 +121,31 @@ export function ModalInteracao({
     );
 
     const mutation = useMutation({
+
         mutationFn: (
-            payload: NovaInteracaoPayload,
-        ) =>
-            criarInteracao(
+            payload:
+                | NovaInteracaoPayload
+                | AtualizarInteracaoPayload,
+        ) => {
+
+            if (
+                modo === "editar" &&
+                interacao
+            ) {
+                return atualizarInteracao(
+                    interacao.id,
+                    payload,
+                );
+            }
+
+            return criarInteracao(
                 oportunidadeId,
                 payload,
-            ),
+            );
+        },
 
         onSuccess: async () => {
+
             await queryClient.invalidateQueries({
                 queryKey: [
                     "oportunidade",
@@ -132,34 +162,32 @@ export function ModalInteracao({
     });
 
     useEffect(() => {
-        if (!aberto) {
+
+        if (
+            !aberto ||
+            modo !== "editar" ||
+            !interacao
+        ) {
             return;
         }
 
-        function fecharComEscape(
-            evento: KeyboardEvent,
-        ) {
-            if (evento.key === "Escape") {
-                aoFechar();
-            }
-        }
+        setTipo(interacao.tipo);
 
-        document.addEventListener(
-            "keydown",
-            fecharComEscape,
+        setDescricao(
+            interacao.descricao,
         );
 
-        document.body.style.overflow = "hidden";
+        setData(
+            new Date(interacao.data)
+                .toISOString()
+                .slice(0, 16),
+        );
 
-        return () => {
-            document.removeEventListener(
-                "keydown",
-                fecharComEscape,
-            );
-
-            document.body.style.overflow = "";
-        };
-    }, [aberto, aoFechar]);
+    }, [
+        aberto,
+        modo,
+        interacao,
+    ]);
 
     if (!aberto) {
         return null;
@@ -216,12 +244,21 @@ export function ModalInteracao({
                 >
                     <div>
                         <h2 className="text-xl font-semibold text-white">
-                            Nova interação
+                            {
+                                modo === "editar"
+                                    ? "Editar interação"
+                                    : "Nova interação"
+                            }
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-400">
-                            Registre uma atividade realizada
-                            com o cliente.
+                            {
+                                modo === "editar"
+
+                                    ? "Atualize os dados da interação."
+
+                                    : "Registre uma atividade realizada com o cliente."
+                            }
                         </p>
                     </div>
 
@@ -475,7 +512,9 @@ export function ModalInteracao({
                                 <>
                                     <Save size={18} />
 
-                                    Registrar interação
+                                    {modo === "editar"
+                                        ? "Salvar alterações"
+                                        : "Registrar interação"}
                                 </>
                             )}
                         </button>

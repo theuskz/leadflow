@@ -8,7 +8,6 @@ import {
     ChevronLeft,
     ChevronRight,
     LayoutDashboard,
-    ListTodo,
     Settings,
     TrendingUp,
     UserRound,
@@ -43,11 +42,6 @@ const itensMenu = [
         titulo: "Funil de vendas",
         href: "/funil",
         icon: TrendingUp,
-    },
-    {
-        titulo: "Tarefas",
-        href: "/tarefas",
-        icon: ListTodo,
     },
     {
         titulo: "Relatórios",
@@ -98,10 +92,15 @@ export function Sidebar({
 
             <aside
                 className={`
-                    fixed inset-y-0 left-0 z-50 flex flex-col border-r border-slate-800
-                    bg-slate-950 transition-all duration-300
+                    fixed inset-y-0 left-0 z-50 flex flex-col
+                    border-r border-slate-800
+                    bg-slate-950
+                    transition-all duration-300
                     ${recolhida ? "w-20" : "w-72"}
-                    ${abertaMobile ? "translate-x-0" : "-translate-x-full"}
+                    ${abertaMobile
+                        ? "translate-x-0"
+                        : "-translate-x-full"
+                    }
                     lg:translate-x-0
                 `}
             >
@@ -111,7 +110,17 @@ export function Sidebar({
                         className="flex items-center gap-3 overflow-hidden"
                         onClick={fecharMobile}
                     >
-                        <div className="flex h-11 min-w-11 items-center justify-center rounded-xl bg-blue-600 font-bold text-white">
+                        <div
+                            className="
+                                flex h-11 min-w-11
+                                items-center justify-center
+                                rounded-xl
+                                bg-primary
+                                font-bold
+                                text-primary-foreground
+                                shadow-lg shadow-black/20
+                            "
+                        >
                             LF
                         </div>
 
@@ -131,7 +140,15 @@ export function Sidebar({
                     <button
                         type="button"
                         onClick={fecharMobile}
-                        className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white lg:hidden"
+                        aria-label="Fechar menu"
+                        className="
+                            rounded-lg p-2
+                            text-slate-400
+                            transition
+                            hover:bg-slate-800
+                            hover:text-white
+                            lg:hidden
+                        "
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -140,28 +157,49 @@ export function Sidebar({
                 <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
                     {itensMenu.map((item) => {
                         const Icon = item.icon;
-                        const ativo = itemAtivo(item.href);
+                        const ativo =
+                            itemAtivo(item.href);
 
                         return (
                             <Link
                                 key={item.href}
                                 href={item.href}
                                 onClick={fecharMobile}
-                                title={recolhida ? item.titulo : undefined}
+                                title={
+                                    recolhida
+                                        ? item.titulo
+                                        : undefined
+                                }
                                 className={`
-                                    flex items-center rounded-xl px-3 py-3 text-sm font-medium transition
-                                    ${recolhida ? "justify-center" : "gap-3"}
-                                    ${
-                                        ativo
-                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-950/30"
-                                            : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                                    flex items-center
+                                    rounded-xl
+                                    px-3 py-3
+                                    text-sm font-medium
+                                    transition
+                                    ${recolhida
+                                        ? "justify-center"
+                                        : "gap-3"
+                                    }
+                                    ${ativo
+                                        ? `
+                                                bg-primary
+                                                text-primary-foreground
+                                                shadow-lg shadow-black/20
+                                            `
+                                        : `
+                                                text-slate-400
+                                                hover:bg-slate-900
+                                                hover:text-white
+                                            `
                                     }
                                 `}
                             >
                                 <Icon className="h-5 w-5 min-w-5" />
 
                                 {!recolhida && (
-                                    <span>{item.titulo}</span>
+                                    <span>
+                                        {item.titulo}
+                                    </span>
                                 )}
                             </Link>
                         );
@@ -170,44 +208,93 @@ export function Sidebar({
 
                 <div className="border-t border-slate-800 px-3 py-4">
                     <div className="space-y-1">
-                        {itensInferiores.map((item) => {
-                            const Icon = item.icon;
-                            const ativo = itemAtivo(item.href);
+                        {itensInferiores.map(
+                            (item) => {
+                                const Icon =
+                                    item.icon;
 
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={fecharMobile}
-                                    title={recolhida ? item.titulo : undefined}
-                                    className={`
-                                        flex items-center rounded-xl px-3 py-3 text-sm font-medium transition
-                                        ${recolhida ? "justify-center" : "gap-3"}
-                                        ${
-                                            ativo
-                                                ? "bg-slate-800 text-white"
-                                                : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                                const ativo =
+                                    itemAtivo(
+                                        item.href,
+                                    );
+
+                                return (
+                                    <Link
+                                        key={
+                                            item.href
                                         }
-                                    `}
-                                >
-                                    <Icon className="h-5 w-5 min-w-5" />
+                                        href={
+                                            item.href
+                                        }
+                                        onClick={
+                                            fecharMobile
+                                        }
+                                        title={
+                                            recolhida
+                                                ? item.titulo
+                                                : undefined
+                                        }
+                                        className={`
+                                            flex items-center
+                                            rounded-xl
+                                            px-3 py-3
+                                            text-sm font-medium
+                                            transition
+                                            ${recolhida
+                                                ? "justify-center"
+                                                : "gap-3"
+                                            }
+                                            ${ativo
+                                                ? `
+                                                        border
+                                                        border-primary/20
+                                                        bg-primary/10
+                                                        text-primary
+                                                    `
+                                                : `
+                                                        text-slate-400
+                                                        hover:bg-slate-900
+                                                        hover:text-white
+                                                    `
+                                            }
+                                        `}
+                                    >
+                                        <Icon className="h-5 w-5 min-w-5" />
 
-                                    {!recolhida && (
-                                        <span>{item.titulo}</span>
-                                    )}
-                                </Link>
-                            );
-                        })}
+                                        {!recolhida && (
+                                            <span>
+                                                {
+                                                    item.titulo
+                                                }
+                                            </span>
+                                        )}
+                                    </Link>
+                                );
+                            },
+                        )}
                     </div>
 
                     <button
                         type="button"
-                        onClick={alternarRecolhida}
+                        onClick={
+                            alternarRecolhida
+                        }
                         className={`
-                            mt-4 hidden w-full items-center rounded-xl border border-slate-800
-                            px-3 py-3 text-sm text-slate-400 transition
-                            hover:bg-slate-900 hover:text-white lg:flex
-                            ${recolhida ? "justify-center" : "gap-3"}
+                            mt-4 hidden w-full
+                            items-center
+                            rounded-xl
+                            border border-slate-800
+                            px-3 py-3
+                            text-sm text-slate-400
+                            transition
+                            hover:border-primary/30
+                            hover:bg-primary/5
+                            hover:text-primary
+                            lg:flex
+                            ${recolhida
+                                ? "justify-center"
+                                : "gap-3"
+                            }
                         `}
                     >
                         {recolhida ? (

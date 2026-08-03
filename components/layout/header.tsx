@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -32,22 +33,34 @@ type HeaderProps = {
     abrirMenu: () => void;
 };
 
-export function Header({ abrirMenu }: HeaderProps) {
+export function Header({
+    abrirMenu,
+}: HeaderProps) {
     const router = useRouter();
 
-    const [usuario, setUsuario] = useState<Usuario | null>(null);
-    const [saindo, setSaindo] = useState(false);
+    const [usuario, setUsuario] =
+        useState<Usuario | null>(null);
+
+    const [saindo, setSaindo] =
+        useState(false);
 
     useEffect(() => {
         async function buscarUsuario() {
             try {
-                const response = await fetch("/api/auth/me");
+                const response = await fetch(
+                    "/api/auth/me",
+                    {
+                        credentials: "include",
+                    },
+                );
 
                 if (!response.ok) {
+                    setUsuario(null);
                     return;
                 }
 
-                const data = await response.json();
+                const data =
+                    await response.json();
 
                 setUsuario(data.usuario);
             } catch {
@@ -62,15 +75,23 @@ export function Header({ abrirMenu }: HeaderProps) {
         try {
             setSaindo(true);
 
-            const response = await fetch("/api/auth/logout", {
-                method: "POST",
-            });
+            const response = await fetch(
+                "/api/auth/logout",
+                {
+                    method: "POST",
+                    credentials: "include",
+                },
+            );
 
             if (!response.ok) {
-                throw new Error("Não foi possível sair.");
+                throw new Error(
+                    "Não foi possível sair.",
+                );
             }
 
-            toast.success("Logout realizado com sucesso.");
+            toast.success(
+                "Logout realizado com sucesso.",
+            );
 
             router.replace("/login");
             router.refresh();
@@ -88,6 +109,7 @@ export function Header({ abrirMenu }: HeaderProps) {
     const iniciais =
         usuario?.nome
             .split(" ")
+            .filter(Boolean)
             .slice(0, 2)
             .map((parte) => parte[0])
             .join("")
@@ -99,18 +121,49 @@ export function Header({ abrirMenu }: HeaderProps) {
                 <button
                     type="button"
                     onClick={abrirMenu}
-                    className="rounded-xl border border-slate-800 p-2.5 text-slate-400 transition hover:bg-slate-900 hover:text-white lg:hidden"
+                    aria-label="Abrir menu"
+                    className="
+                        rounded-xl
+                        border border-slate-800
+                        p-2.5
+                        text-slate-400
+                        transition
+                        hover:border-primary/30
+                        hover:bg-primary/5
+                        hover:text-primary
+                        lg:hidden
+                    "
                 >
                     <Menu className="h-5 w-5" />
                 </button>
 
-                <div className="hidden w-80 items-center rounded-xl border border-slate-800 bg-slate-900/70 px-3 lg:flex">
+                <div
+                    className="
+                        hidden w-80 items-center
+                        rounded-xl
+                        border border-slate-800
+                        bg-slate-900/70
+                        px-3
+                        transition
+                        focus-within:border-primary/50
+                        focus-within:ring-2
+                        focus-within:ring-primary/10
+                        lg:flex
+                    "
+                >
                     <Search className="h-5 w-5 text-slate-500" />
 
                     <input
                         type="text"
                         placeholder="Pesquisar no CRM..."
-                        className="h-11 w-full bg-transparent px-3 text-sm text-white outline-none placeholder:text-slate-600"
+                        className="
+                            h-11 w-full
+                            bg-transparent
+                            px-3
+                            text-sm text-white
+                            outline-none
+                            placeholder:text-slate-600
+                        "
                     />
                 </div>
             </div>
@@ -118,11 +171,29 @@ export function Header({ abrirMenu }: HeaderProps) {
             <div className="flex items-center gap-3">
                 <button
                     type="button"
-                    className="relative rounded-xl border border-slate-800 p-2.5 text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                    aria-label="Notificações"
+                    className="
+                        relative rounded-xl
+                        border border-slate-800
+                        p-2.5
+                        text-slate-400
+                        transition
+                        hover:border-primary/30
+                        hover:bg-primary/5
+                        hover:text-primary
+                    "
                 >
                     <Bell className="h-5 w-5" />
 
-                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-slate-950" />
+                    <span
+                        className="
+                            absolute right-2 top-2
+                            h-2 w-2
+                            rounded-full
+                            bg-primary
+                            ring-2 ring-slate-950
+                        "
+                    />
                 </button>
 
                 <DropdownMenu>
@@ -130,21 +201,41 @@ export function Header({ abrirMenu }: HeaderProps) {
                         render={
                             <button
                                 type="button"
-                                className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 transition hover:bg-slate-900"
+                                className="
+                                    flex items-center gap-3
+                                    rounded-xl
+                                    border border-slate-800
+                                    bg-slate-900/60
+                                    px-3 py-2
+                                    transition
+                                    hover:border-primary/30
+                                    hover:bg-primary/5
+                                "
                             />
                         }
                     >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-semibold text-white">
+                        <div
+                            className="
+                                flex h-9 w-9
+                                items-center justify-center
+                                rounded-lg
+                                bg-primary
+                                text-sm font-semibold
+                                text-primary-foreground
+                            "
+                        >
                             {iniciais}
                         </div>
 
                         <div className="hidden text-left sm:block">
                             <p className="max-w-36 truncate text-sm font-medium text-white">
-                                {usuario?.nome ?? "Carregando..."}
+                                {usuario?.nome ??
+                                    "Carregando..."}
                             </p>
 
                             <p className="text-xs text-slate-500">
-                                {usuario?.nivel ?? "Usuário"}
+                                {usuario?.nivel ??
+                                    "Usuário"}
                             </p>
                         </div>
 
@@ -153,38 +244,70 @@ export function Header({ abrirMenu }: HeaderProps) {
 
                     <DropdownMenuContent
                         align="end"
-                        className="w-64 border-slate-800 bg-slate-950 text-slate-200"
+                        className="
+                            w-64 rounded-xl
+                            border-slate-800
+                            bg-slate-950
+                            p-1
+                            text-slate-200
+                        "
                     >
-                        <DropdownMenuLabel>
-                            <p className="font-medium text-white">
-                                {usuario?.nome ?? "Usuário"}
-                            </p>
+                        <DropdownMenuGroup>
+                            <DropdownMenuLabel>
+                                <p className="font-medium text-white">
+                                    {usuario?.nome ??
+                                        "Usuário"}
+                                </p>
 
-                            <p className="mt-1 truncate text-xs font-normal text-slate-500">
-                                {usuario?.email ?? ""}
-                            </p>
-                        </DropdownMenuLabel>
+                                <p className="mt-1 truncate text-xs font-normal text-slate-500">
+                                    {usuario?.email ??
+                                        ""}
+                                </p>
+                            </DropdownMenuLabel>
+
+                            <DropdownMenuSeparator className="bg-slate-800" />
+
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    router.push(
+                                        "/perfil",
+                                    )
+                                }
+                                className="
+                                    cursor-pointer
+                                    rounded-lg
+                                    focus:bg-primary/10
+                                    focus:text-primary
+                                "
+                            >
+                                <UserRound className="mr-2 h-4 w-4" />
+                                Meu perfil
+                            </DropdownMenuItem>
+                        </DropdownMenuGroup>
 
                         <DropdownMenuSeparator className="bg-slate-800" />
 
-                        <DropdownMenuItem
-                            onClick={() => router.push("/perfil")}
-                            className="cursor-pointer focus:bg-slate-900 focus:text-white"
-                        >
-                            <UserRound className="mr-2 h-4 w-4" />
-                            Meu perfil
-                        </DropdownMenuItem>
+                        <DropdownMenuGroup>
+                            <DropdownMenuItem
+                                onClick={
+                                    fazerLogout
+                                }
+                                disabled={saindo}
+                                className="
+                                    cursor-pointer
+                                    rounded-lg
+                                    text-red-400
+                                    focus:bg-red-500/10
+                                    focus:text-red-400
+                                "
+                            >
+                                <LogOut className="mr-2 h-4 w-4" />
 
-                        <DropdownMenuSeparator className="bg-slate-800" />
-
-                        <DropdownMenuItem
-                            onClick={fazerLogout}
-                            disabled={saindo}
-                            className="cursor-pointer text-red-400 focus:bg-red-500/10 focus:text-red-400"
-                        >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            {saindo ? "Saindo..." : "Sair"}
-                        </DropdownMenuItem>
+                                {saindo
+                                    ? "Saindo..."
+                                    : "Sair"}
+                            </DropdownMenuItem>
+                        </DropdownMenuGroup>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>

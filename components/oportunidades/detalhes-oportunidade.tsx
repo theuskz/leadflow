@@ -4,10 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+    MenuInteracao,
+} from "@/components/oportunidades/menu-interacao";
+import {
     useMutation,
     useQuery,
     useQueryClient,
 } from "@tanstack/react-query";
+import {
+    ModalTarefa,
+} from "@/components/tarefas/modal-tarefa";
 import {
     AlertCircle,
     ArrowLeft,
@@ -151,6 +157,12 @@ export function DetalhesOportunidade({
         modalEditarAberto,
         setModalEditarAberto,
     ] = useState(false);
+
+    const [
+        modalTarefaAberto,
+        setModalTarefaAberto,
+    ] = useState(false);
+
 
     const {
         data,
@@ -595,11 +607,16 @@ export function DetalhesOportunidade({
                                                             )}
                                                         </p>
 
-                                                        <time className="text-xs text-slate-500">
-                                                            {formatarDataHora(
-                                                                interacao.data,
-                                                            )}
-                                                        </time>
+                                                        <div className="flex items-center gap-2">
+                                                            <time className="text-xs text-slate-500">
+                                                                {formatarDataHora(interacao.data)}
+                                                            </time>
+
+                                                            <MenuInteracao
+                                                                oportunidadeId={oportunidadeId}
+                                                                interacao={interacao}
+                                                            />
+                                                        </div>
                                                     </div>
 
                                                     <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -642,7 +659,31 @@ export function DetalhesOportunidade({
                                     </p>
                                 </div>
 
-                                <CheckCircle2 className="text-emerald-400" />
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setModalTarefaAberto(true)}
+                                        className="
+                                        inline-flex
+                                        items-center
+                                        gap-2
+                                        rounded-xl
+                                        bg-cyan-500
+                                        px-3 py-2
+                                        text-sm
+                                        font-semibold
+                                        text-slate-950
+                                        transition
+                                        hover:bg-cyan-400
+                                        "
+                                    >
+                                        <Plus size={16} />
+
+                                        Nova tarefa
+                                    </button>
+
+                                    <CheckCircle2 className="text-emerald-400" />
+                                </div>
                             </div>
                         </div>
 
@@ -782,6 +823,14 @@ export function DetalhesOportunidade({
                 aberto={modalInteracaoAberto}
                 aoFechar={() =>
                     setModalInteracaoAberto(false)
+                }
+            />
+
+            <ModalTarefa
+                oportunidadeId={oportunidadeId}
+                aberto={modalTarefaAberto}
+                aoFechar={() =>
+                    setModalTarefaAberto(false)
                 }
             />
         </div>

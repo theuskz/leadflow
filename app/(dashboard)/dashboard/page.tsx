@@ -1,72 +1,184 @@
+"use client";
+
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
-    ArrowDownRight,
-    ArrowUpRight,
+    AlertCircle,
+    ArrowRight,
     BriefcaseBusiness,
     CircleDollarSign,
+    Clock3,
+    Loader2,
+    RefreshCw,
+    Trophy,
     TrendingUp,
     UsersRound,
 } from "lucide-react";
 
-const metricas = [
-    {
-        titulo: "Total de leads",
-        valor: "248",
-        variacao: "+12,5%",
-        positivo: true,
-        descricao: "comparado ao mês anterior",
-        icon: UsersRound,
-    },
-    {
-        titulo: "Oportunidades abertas",
-        valor: "64",
-        variacao: "+8,2%",
-        positivo: true,
-        descricao: "comparado ao mês anterior",
-        icon: BriefcaseBusiness,
-    },
-    {
-        titulo: "Valor em negociação",
-        valor: "R$ 184.500",
-        variacao: "+16,4%",
-        positivo: true,
-        descricao: "comparado ao mês anterior",
-        icon: CircleDollarSign,
-    },
-    {
-        titulo: "Taxa de conversão",
-        valor: "28,7%",
-        variacao: "-2,1%",
-        positivo: false,
-        descricao: "comparado ao mês anterior",
-        icon: TrendingUp,
-    },
-];
+import {
+    buscarDashboard,
+} from "@/lib/dashboard";
 
-const oportunidades = [
-    {
-        cliente: "Grupo Horizonte",
-        titulo: "Implantação de sistema",
-        valor: "R$ 28.500",
-        etapa: "Negociação",
-    },
-    {
-        cliente: "Construtora Alfa",
-        titulo: "Consultoria comercial",
-        valor: "R$ 18.900",
-        etapa: "Proposta enviada",
-    },
-    {
-        cliente: "Tech Solutions",
-        titulo: "Plano empresarial",
-        valor: "R$ 12.400",
-        etapa: "Qualificado",
-    },
-];
+import {
+    GraficoVendas,
+} from "@/components/relatorios/grafico-vendas";
+
+import type {
+    StatusOportunidadeDashboard,
+} from "@/types/dashboard";
+
+const nomesStatus: Record<
+    StatusOportunidadeDashboard,
+    string
+> = {
+    NOVO_LEAD: "Novo lead",
+    PRIMEIRO_CONTATO: "Primeiro contato",
+    QUALIFICADO: "Qualificado",
+    PROPOSTA_ENVIADA: "Proposta enviada",
+    NEGOCIACAO: "Negociação",
+    FECHADO: "Fechado",
+    PERDIDO: "Perdido",
+};
+
+const coresStatus: Record<
+    StatusOportunidadeDashboard,
+    string
+> = {
+    NOVO_LEAD:
+        "border-slate-500/30 bg-slate-500/10 text-slate-300",
+    PRIMEIRO_CONTATO:
+        "border-blue-500/30 bg-blue-500/10 text-blue-300",
+    QUALIFICADO:
+        "border-violet-500/30 bg-violet-500/10 text-violet-300",
+    PROPOSTA_ENVIADA:
+        "border-amber-500/30 bg-amber-500/10 text-amber-300",
+    NEGOCIACAO:
+        "border-orange-500/30 bg-orange-500/10 text-orange-300",
+    FECHADO:
+        "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+    PERDIDO:
+        "border-red-500/30 bg-red-500/10 text-red-300",
+};
+
+function formatarMoeda(valor: number) {
+    return valor.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+    });
+}
+
+function formatarData(data: string) {
+    return new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "medium",
+    }).format(new Date(data));
+}
 
 export default function DashboardPage() {
+    const {
+        data,
+        isPending,
+        isFetching,
+        isError,
+        error,
+        refetch,
+    } = useQuery({
+        queryKey: ["dashboard"],
+        queryFn: buscarDashboard,
+    });
+
+    if (isPending) {
+        return (
+            <div className="flex min-h-[500px] items-center justify-center gap-3 text-slate-400">
+                <Loader2
+                    size={22}
+                    className="animate-spin"
+                />
+
+                Carregando dashboard...
+            </div>
+        );
+    }
+
+    if (isError || !data) {
+        return (
+            <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center">
+                <AlertCircle
+                    size={34}
+                    className="text-red-400"
+                />
+
+                <h2 className="mt-4 font-semibold text-red-300">
+                    Não foi possível carregar o dashboard
+                </h2>
+
+                <p className="mt-2 text-sm text-slate-400">
+                    {error instanceof Error
+                        ? error.message
+                        : "Ocorreu um erro inesperado."}
+                </p>
+
+                <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-400"
+                >
+                    <RefreshCw size={16} />
+                    Tentar novamente
+                </button>
+            </div>
+        );
+    }
+
+    const maiorQuantidade = Math.max(
+        ...data.funil.map(
+            (item) => item.quantidade,
+        ),
+        1,
+    );
+
+    const metricas = [
+        {
+            titulo: "Total de clientes",
+            valor: String(
+                data.resumo.totalClientes,
+            ),
+            descricao:
+                "Clientes ativos no sistema",
+            icon: UsersRound,
+        },
+        {
+            titulo:
+                "Oportunidades abertas",
+            valor: String(
+                data.resumo
+                    .oportunidadesAbertas,
+            ),
+            descricao:
+                "Negociações em andamento",
+            icon: BriefcaseBusiness,
+        },
+        {
+            titulo: "Valor em negociação",
+            valor: formatarMoeda(
+                data.resumo.valorPipeline,
+            ),
+            descricao:
+                "Soma das oportunidades abertas",
+            icon: CircleDollarSign,
+        },
+        {
+            titulo: "Taxa de conversão",
+            valor: `${data.resumo.taxaConversao.toFixed(
+                1,
+            )}%`,
+            descricao: `${data.resumo.oportunidadesFechadas} fechadas e ${data.resumo.oportunidadesPerdidas} perdidas`,
+            icon: TrendingUp,
+        },
+    ];
+
     return (
-        <div>
-            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div className="space-y-6">
+            <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
                     <p className="text-sm font-medium text-blue-400">
                         Visão geral
@@ -81,15 +193,57 @@ export default function DashboardPage() {
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                    Nova oportunidade
-                </button>
-            </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                        type="button"
+                        onClick={() => refetch()}
+                        disabled={isFetching}
+                        className="
+                            inline-flex h-11
+                            items-center justify-center gap-2
+                            rounded-xl
+                            border border-slate-800
+                            bg-slate-900
+                            px-4 text-sm font-medium
+                            text-slate-300
+                            transition
+                            hover:bg-slate-800
+                            hover:text-white
+                            disabled:opacity-60
+                        "
+                    >
+                        <RefreshCw
+                            size={16}
+                            className={
+                                isFetching
+                                    ? "animate-spin"
+                                    : ""
+                            }
+                        />
 
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                        Atualizar
+                    </button>
+
+                    <Link
+                        href="/oportunidades"
+                        className="
+                            inline-flex h-11
+                            items-center justify-center gap-2
+                            rounded-xl
+                            bg-blue-600
+                            px-5
+                            text-sm font-semibold
+                            text-white
+                            transition
+                            hover:bg-blue-700
+                        "
+                    >
+                        Nova oportunidade
+                    </Link>
+                </div>
+            </header>
+
+            <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
                 {metricas.map((metrica) => {
                     const Icon = metrica.icon;
 
@@ -98,29 +252,8 @@ export default function DashboardPage() {
                             key={metrica.titulo}
                             className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
                         >
-                            <div className="flex items-center justify-between">
-                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-                                    <Icon className="h-5 w-5" />
-                                </div>
-
-                                <div
-                                    className={`
-                                        flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium
-                                        ${
-                                            metrica.positivo
-                                                ? "bg-emerald-500/10 text-emerald-400"
-                                                : "bg-red-500/10 text-red-400"
-                                        }
-                                    `}
-                                >
-                                    {metrica.positivo ? (
-                                        <ArrowUpRight className="h-3.5 w-3.5" />
-                                    ) : (
-                                        <ArrowDownRight className="h-3.5 w-3.5" />
-                                    )}
-
-                                    {metrica.variacao}
-                                </div>
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                                <Icon className="h-5 w-5" />
                             </div>
 
                             <p className="mt-5 text-sm text-slate-400">
@@ -137,162 +270,343 @@ export default function DashboardPage() {
                         </article>
                     );
                 })}
-            </div>
+            </section>
 
-            <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-                <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-lg font-semibold text-white">
-                                Desempenho comercial
-                            </h2>
+            <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+                <article className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                    <div>
+                        <h2 className="text-lg font-semibold text-white">
+                            Desempenho comercial
+                        </h2>
 
-                            <p className="mt-1 text-sm text-slate-500">
-                                Evolução das vendas nos últimos meses
-                            </p>
-                        </div>
-
-                        <select className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-300 outline-none">
-                            <option>Últimos 6 meses</option>
-                            <option>Últimos 12 meses</option>
-                        </select>
-                    </div>
-
-                    <div className="mt-8 flex h-72 items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-950/50">
-                        <p className="text-sm text-slate-600">
-                            Gráfico será adicionado com dados reais
+                        <p className="mt-1 text-sm text-slate-500">
+                            Vendas fechadas nos últimos seis meses
                         </p>
                     </div>
-                </section>
 
-                <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                    <div className="mt-6">
+                        <GraficoVendas
+                            dados={
+                                data.vendasPorMes
+                            }
+                        />
+                    </div>
+                </article>
+
+                <article className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                     <h2 className="text-lg font-semibold text-white">
                         Resumo do funil
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                        Distribuição das oportunidades
+                        Distribuição atual das oportunidades
                     </p>
 
                     <div className="mt-6 space-y-5">
-                        {[
-                            {
-                                titulo: "Novos leads",
-                                valor: 48,
-                                porcentagem: 85,
-                            },
-                            {
-                                titulo: "Qualificados",
-                                valor: 32,
-                                porcentagem: 65,
-                            },
-                            {
-                                titulo: "Propostas",
-                                valor: 18,
-                                porcentagem: 42,
-                            },
-                            {
-                                titulo: "Negociação",
-                                valor: 11,
-                                porcentagem: 28,
-                            },
-                            {
-                                titulo: "Fechados",
-                                valor: 7,
-                                porcentagem: 18,
-                            },
-                        ].map((etapa) => (
-                            <div key={etapa.titulo}>
-                                <div className="mb-2 flex items-center justify-between">
-                                    <span className="text-sm text-slate-300">
-                                        {etapa.titulo}
-                                    </span>
+                        {data.funil.map(
+                            (etapa) => {
+                                const percentual =
+                                    (etapa.quantidade /
+                                        maiorQuantidade) *
+                                    100;
 
-                                    <span className="text-sm font-semibold text-white">
-                                        {etapa.valor}
-                                    </span>
-                                </div>
-
-                                <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                                return (
                                     <div
-                                        className="h-full rounded-full bg-blue-600"
-                                        style={{
-                                            width: `${etapa.porcentagem}%`,
-                                        }}
-                                    />
-                                </div>
+                                        key={
+                                            etapa.status
+                                        }
+                                    >
+                                        <div className="mb-2 flex items-center justify-between">
+                                            <span className="text-sm text-slate-300">
+                                                {
+                                                    etapa.nome
+                                                }
+                                            </span>
+
+                                            <span className="text-sm font-semibold text-white">
+                                                {
+                                                    etapa.quantidade
+                                                }
+                                            </span>
+                                        </div>
+
+                                        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                                            <div
+                                                className="h-full rounded-full bg-blue-600 transition-all"
+                                                style={{
+                                                    width: `${percentual}%`,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            },
+                        )}
+                    </div>
+                </article>
+            </section>
+
+            <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                <article className="rounded-2xl border border-slate-800 bg-slate-900/60">
+                    <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
+                        <div>
+                            <h2 className="text-lg font-semibold text-white">
+                                Oportunidades recentes
+                            </h2>
+
+                            <p className="mt-1 text-sm text-slate-500">
+                                Negociações atualizadas recentemente
+                            </p>
+                        </div>
+
+                        <Link
+                            href="/oportunidades"
+                            className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 transition hover:text-blue-300"
+                        >
+                            Ver todas
+                            <ArrowRight size={16} />
+                        </Link>
+                    </div>
+
+                    {data.ultimasOportunidades
+                        .length === 0 ? (
+                        <div className="flex min-h-[260px] items-center justify-center p-6 text-sm text-slate-600">
+                            Nenhuma oportunidade cadastrada.
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-2xl">
+                                <thead>
+                                    <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wider text-slate-500">
+                                        <th className="px-6 py-4 font-medium">
+                                            Cliente
+                                        </th>
+
+                                        <th className="px-6 py-4 font-medium">
+                                            Oportunidade
+                                        </th>
+
+                                        <th className="px-6 py-4 font-medium">
+                                            Valor
+                                        </th>
+
+                                        <th className="px-6 py-4 font-medium">
+                                            Etapa
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {data.ultimasOportunidades.map(
+                                        (
+                                            oportunidade,
+                                        ) => (
+                                            <tr
+                                                key={
+                                                    oportunidade.id
+                                                }
+                                                className="border-b border-slate-800/70 last:border-0"
+                                            >
+                                                <td className="px-6 py-5">
+                                                    <Link
+                                                        href={`/oportunidades/${oportunidade.id}`}
+                                                        className="text-sm font-medium text-white transition hover:text-blue-400"
+                                                    >
+                                                        {
+                                                            oportunidade
+                                                                .cliente
+                                                                .nome
+                                                        }
+                                                    </Link>
+
+                                                    {oportunidade
+                                                        .cliente
+                                                        .empresa && (
+                                                            <p className="mt-1 text-xs text-slate-600">
+                                                                {
+                                                                    oportunidade
+                                                                        .cliente
+                                                                        .empresa
+                                                                }
+                                                            </p>
+                                                        )}
+                                                </td>
+
+                                                <td className="px-6 py-5 text-sm text-slate-400">
+                                                    {
+                                                        oportunidade.titulo
+                                                    }
+                                                </td>
+
+                                                <td className="px-6 py-5 text-sm font-medium text-slate-200">
+                                                    {formatarMoeda(
+                                                        oportunidade.valor,
+                                                    )}
+                                                </td>
+
+                                                <td className="px-6 py-5">
+                                                    <span
+                                                        className={`
+                                                            rounded-full border
+                                                            px-3 py-1
+                                                            text-xs font-medium
+                                                            ${coresStatus[
+                                                            oportunidade
+                                                                .status
+                                                            ]
+                                                            }
+                                                        `}
+                                                    >
+                                                        {
+                                                            nomesStatus[
+                                                            oportunidade
+                                                                .status
+                                                            ]
+                                                        }
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ),
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </article>
+
+                <div className="space-y-6">
+                    <article className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-white">
+                                    Melhor vendedor
+                                </h2>
+
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Maior valor fechado
+                                </p>
                             </div>
-                        ))}
-                    </div>
-                </section>
-            </div>
 
-            <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60">
-                <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
-                    <div>
-                        <h2 className="text-lg font-semibold text-white">
-                            Oportunidades recentes
-                        </h2>
+                            <Trophy className="text-amber-400" />
+                        </div>
 
-                        <p className="mt-1 text-sm text-slate-500">
-                            Negociações atualizadas recentemente
-                        </p>
-                    </div>
+                        {data.melhorVendedor ? (
+                            <div className="mt-6">
+                                <p className="text-xl font-semibold text-white">
+                                    {
+                                        data
+                                            .melhorVendedor
+                                            .nome
+                                    }
+                                </p>
 
-                    <button
-                        type="button"
-                        className="text-sm font-medium text-blue-400 transition hover:text-blue-300"
-                    >
-                        Ver todas
-                    </button>
-                </div>
+                                <p className="mt-2 text-3xl font-bold tracking-tight text-cyan-400">
+                                    {formatarMoeda(
+                                        data
+                                            .melhorVendedor
+                                            .valor,
+                                    )}
+                                </p>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-2xl">
-                        <thead>
-                            <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wider text-slate-500">
-                                <th className="px-6 py-4 font-medium">
-                                    Cliente
-                                </th>
-                                <th className="px-6 py-4 font-medium">
-                                    Oportunidade
-                                </th>
-                                <th className="px-6 py-4 font-medium">
-                                    Valor
-                                </th>
-                                <th className="px-6 py-4 font-medium">
-                                    Etapa
-                                </th>
-                            </tr>
-                        </thead>
+                                <p className="mt-2 text-sm text-slate-500">
+                                    {
+                                        data
+                                            .melhorVendedor
+                                            .quantidade
+                                    }{" "}
+                                    venda
+                                    {data
+                                        .melhorVendedor
+                                        .quantidade !==
+                                        1
+                                        ? "s"
+                                        : ""}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="mt-6 flex min-h-[120px] items-center justify-center text-center text-sm text-slate-600">
+                                Nenhuma venda fechada.
+                            </div>
+                        )}
+                    </article>
 
-                        <tbody>
-                            {oportunidades.map((oportunidade) => (
-                                <tr
-                                    key={oportunidade.cliente}
-                                    className="border-b border-slate-800/70 last:border-0"
-                                >
-                                    <td className="px-6 py-5 text-sm font-medium text-white">
-                                        {oportunidade.cliente}
-                                    </td>
+                    <article className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-white">
+                                    Precisam de atenção
+                                </h2>
 
-                                    <td className="px-6 py-5 text-sm text-slate-400">
-                                        {oportunidade.titulo}
-                                    </td>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Sem atualização há 7 dias ou mais
+                                </p>
+                            </div>
 
-                                    <td className="px-6 py-5 text-sm font-medium text-slate-200">
-                                        {oportunidade.valor}
-                                    </td>
+                            <Clock3 className="text-orange-400" />
+                        </div>
 
-                                    <td className="px-6 py-5">
-                                        <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-400">
-                                            {oportunidade.etapa}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                        {data
+                            .oportunidadesAtencao
+                            .length === 0 ? (
+                            <div className="mt-6 flex min-h-[120px] items-center justify-center text-center text-sm text-slate-600">
+                                Nenhuma oportunidade parada.
+                            </div>
+                        ) : (
+                            <div className="mt-5 space-y-3">
+                                {data.oportunidadesAtencao.map(
+                                    (
+                                        oportunidade,
+                                    ) => (
+                                        <Link
+                                            key={
+                                                oportunidade.id
+                                            }
+                                            href={`/oportunidades/${oportunidade.id}`}
+                                            className="
+                                                block rounded-xl
+                                                border border-slate-800
+                                                bg-slate-950/70
+                                                p-4 transition
+                                                hover:border-orange-500/30
+                                                hover:bg-orange-500/5
+                                            "
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium text-white">
+                                                        {
+                                                            oportunidade.titulo
+                                                        }
+                                                    </p>
+
+                                                    <p className="mt-1 truncate text-xs text-slate-500">
+                                                        {
+                                                            oportunidade
+                                                                .cliente
+                                                                .nome
+                                                        }
+                                                    </p>
+                                                </div>
+
+                                                <span className="shrink-0 rounded-full bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-300">
+                                                    {
+                                                        oportunidade.diasSemAtualizacao
+                                                    }{" "}
+                                                    dias
+                                                </span>
+                                            </div>
+
+                                            <p className="mt-3 text-sm font-medium text-slate-300">
+                                                {formatarMoeda(
+                                                    oportunidade.valor,
+                                                )}
+                                            </p>
+                                        </Link>
+                                    ),
+                                )}
+                            </div>
+                        )}
+                    </article>
                 </div>
             </section>
         </div>
